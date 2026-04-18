@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Hotel, Eye, EyeOff, LogIn, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '../supabase'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,12 +15,12 @@ interface LoginScreenProps {
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('staff');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('fdo')
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -30,16 +31,35 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     
     setIsLoading(true);
     
-    try {
-      const success = onLogin(email, password, selectedRole);
-      if (!success) {
-        setError('Invalid credentials. Try staff/staff or hk_staff/hk_staff, or use your manager login manually.');
-      }
-    } catch (err) {
-      setError('Login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+  try {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    setError('Invalid email or password');
+    return;
+  }
+
+  const { data: roleData, error: roleError } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', data.user.id)
+    .single();
+
+  if (roleError || !roleData) {
+    setError('No role assigned');
+    return;
+  }
+
+  onLogin(email, password, roleData.role as UserRole);
+
+} catch (err) {
+  setError('Login failed. Please try again.');
+} finally {
+  setIsLoading(false);
+}
   };
 
   const handleDemoMode = (role: 'staff' | 'hk_staff') => {

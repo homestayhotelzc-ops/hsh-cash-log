@@ -1,6 +1,6 @@
 // HSH Cash Log - Type Definitions
 
-export type UserRole = 'staff' | 'manager' | 'hk_staff';
+export type UserRole = 'fdo' | 'manager' | 'hk';
 
 export type PaymentMethod = 'Cash' | 'GCash' | 'Maya' | 'Bank';
 

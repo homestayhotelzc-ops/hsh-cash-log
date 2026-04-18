@@ -31,7 +31,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      const { data, error } = await (supabase.auth as any).signInWithPassword({
+      const auth = supabase.auth as any;
+
+      const { data, error } = await auth.signInWithPassword({
         email,
         password,
       });

@@ -115,7 +115,7 @@ export function useAppStore() {
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
   };
 
-  const login = (email: string, password: string, role?: 'fdo' | 'manager' | 'hk') => {
+  const login = (email: string, _password: string, role?: 'fdo' | 'manager' | 'hk') => {
     if (!role) return false;
 
     const user: User = {

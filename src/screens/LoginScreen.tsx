@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hotel, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Hotel, Eye, EyeOff, LogIn, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '../supabase';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,21 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDemoLogin = () => {
+    setError('');
+    setIsLoading(true);
+
+    setTimeout(() => {
+      try {
+        onLogin('demo@hsh.com', 'demo', 'fdo');
+      } catch {
+        setError('Training mode failed. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 100);
   };
 
   return (
@@ -141,6 +156,26 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               )}
             </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Training</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 text-sm font-semibold border-2 border-blue-500 text-blue-700 hover:bg-blue-50"
+            disabled={isLoading}
+            onClick={handleDemoLogin}
+          >
+            <GraduationCap className="w-4 h-4 mr-2" />
+            FDO Training Mode
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -35,7 +35,7 @@ function App() {
     );
   }
 
-  const handleLogin = (email: string, password: string, role?: 'staff' | 'manager' | 'hk_staff'): boolean => {
+  const handleLogin = (email: string, password: string, role?: 'fdo' | 'manager' | 'hk') => {
     const success = appStore.login(email, password, role);
     // If HK Staff, redirect to Rooms tab
     if (success && role === 'hk_staff') {

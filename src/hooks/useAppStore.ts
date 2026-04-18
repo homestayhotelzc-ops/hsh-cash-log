@@ -125,8 +125,6 @@ export function useAppStore() {
 
     setIsDemoMode(true);
     setCurrentUser(demoUser);
-
-    // keep demo completely separate from real data
     setOpeningCashMap({});
     setTransactions(generateDemoTransactions());
     setCashCounts([]);
@@ -136,8 +134,38 @@ export function useAppStore() {
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
   };
 
+  const getDisplayNameFromEmail = (email: string, role: 'fdo' | 'manager' | 'hk') => {
+    if (email === 'demo@hsh.com') return 'FDO Training';
+    if (email === 'manager@hsh.com') return 'Manager';
+
+    const localPart = email.split('@')[0]?.trim().toLowerCase() || '';
+
+    if (role === 'hk') {
+      if (localPart === 'hk1') return 'HK Staff';
+      if (localPart.startsWith('hk')) return 'HK Staff';
+      return 'HK Staff';
+    }
+
+    if (role === 'manager') {
+      return 'Manager';
+    }
+
+    if (!localPart) return 'FDO Staff';
+
+    const cleaned = localPart
+      .replace(/[._-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleaned) return 'FDO Staff';
+
+    return cleaned
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   const login = (email: string, _password: string, role?: 'fdo' | 'manager' | 'hk') => {
-    // DEMO LOGIN
     if (email === 'demo@hsh.com') {
       enableDemoMode();
       return true;
@@ -148,12 +176,7 @@ export function useAppStore() {
     const user: User = {
       id: crypto.randomUUID(),
       email,
-      name:
-        role === 'manager'
-          ? 'Manager'
-          : role === 'hk'
-          ? 'HK Staff'
-          : 'FDO Staff',
+      name: getDisplayNameFromEmail(email, role),
       role,
       isActive: true,
     };

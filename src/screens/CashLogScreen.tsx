@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { 
-  LogOut, 
+import {
+  LogOut,
   ChevronLeft,
   ChevronRight,
   Hotel,
@@ -47,67 +47,65 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [openingCashInput, setOpeningCashInput] = useState('');
   const [showOpeningCashSet, setShowOpeningCashSet] = useState(false);
-  
-  // Search & Filter states
+
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'all'>('all');
-  
+
   const summary = useMemo(() => appStore.getDailySummary(selectedDate), [appStore, selectedDate]);
   const openingCashSet = useMemo(() => appStore.isOpeningCashSet(selectedDate), [appStore, selectedDate]);
-  
+
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
+  const isManager = appStore.currentUser?.role === 'manager';
 
-  // Filter transactions by date filter
   const filteredTransactions = useMemo(() => {
     let txs = appStore.transactions;
-    
-    // Apply date filter
-    switch (dateFilter) {
-      case 'today':
-        txs = txs.filter(t => t.date === today);
-        break;
-      case 'week':
-        txs = txs.filter(t => {
-          const txDate = new Date(t.date);
-          return isSameWeek(txDate, now, { weekStartsOn: 1 });
-        });
-        break;
-      case 'month':
-        txs = txs.filter(t => {
-          const txDate = new Date(t.date);
-          return isSameMonth(txDate, now);
-        });
-        break;
-      case 'custom':
-        txs = txs.filter(t => t.date === selectedDate);
-        break;
-    }
-    
-    // Apply search filter (guest name)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      txs = txs.filter(t => 
-        (t.guestName?.toLowerCase().includes(q)) ||
-        (t.category?.toLowerCase().includes(q)) ||
-        (t.staffName?.toLowerCase().includes(q))
-      );
-    }
-    
-    // Apply payment method filter
-    if (methodFilter !== 'all') {
-      txs = txs.filter(t => t.paymentMethod === methodFilter);
-    }
-    
-    // Sort by timestamp descending (newest first)
-    return txs.sort((a, b) => b.timestamp - a.timestamp);
-  }, [appStore.transactions, dateFilter, selectedDate, today, now, searchQuery, methodFilter]);
 
-  // Day transactions for opening cash (custom date only)
+    if (isManager) {
+      switch (dateFilter) {
+        case 'today':
+          txs = txs.filter((t) => t.date === today);
+          break;
+        case 'week':
+          txs = txs.filter((t) => {
+            const txDate = new Date(t.date);
+            return isSameWeek(txDate, now, { weekStartsOn: 1 });
+          });
+          break;
+        case 'month':
+          txs = txs.filter((t) => {
+            const txDate = new Date(t.date);
+            return isSameMonth(txDate, now);
+          });
+          break;
+        case 'custom':
+          txs = txs.filter((t) => t.date === selectedDate);
+          break;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        txs = txs.filter((t) =>
+          (t.guestName?.toLowerCase().includes(q)) ||
+          (t.category?.toLowerCase().includes(q)) ||
+          (t.staffName?.toLowerCase().includes(q))
+        );
+      }
+
+      if (methodFilter !== 'all') {
+        txs = txs.filter((t) => t.paymentMethod === methodFilter);
+      }
+    } else {
+      txs = txs.filter((t) => t.date === today);
+    }
+
+    return [...txs].sort((a, b) => b.timestamp - a.timestamp);
+  }, [appStore.transactions, dateFilter, selectedDate, today, now, searchQuery, methodFilter, isManager]);
+
   const dayTransactions = useMemo(() => {
     return appStore.transactions
-      .filter(t => t.date === selectedDate)
+      .filter((t) => t.date === selectedDate)
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [appStore.transactions, selectedDate]);
 
@@ -158,17 +156,19 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
     }
   };
 
-  // Get amount color by payment method
   const getAmountColor = (method: PaymentMethod) => {
     switch (method) {
-      case 'Cash': return 'text-green-700';
-      case 'GCash': return 'text-blue-700';
-      case 'Maya': return 'text-purple-700';
-      case 'Bank': return 'text-indigo-700';
+      case 'Cash':
+        return 'text-green-700';
+      case 'GCash':
+        return 'text-blue-700';
+      case 'Maya':
+        return 'text-purple-700';
+      case 'Bank':
+        return 'text-indigo-700';
     }
   };
 
-  // Get amount display for In column
   const getInAmount = (tx: Transaction) => {
     if (tx.flowType === 'IN') {
       return <span className={`font-bold text-base ${getAmountColor(tx.paymentMethod)}`}>+{formatCurrency(tx.amount)}</span>;
@@ -179,7 +179,6 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
     return <span className="text-gray-400">-</span>;
   };
 
-  // Get amount display for Out column
   const getOutAmount = (tx: Transaction) => {
     if (tx.flowType === 'OUT') {
       return <span className={`font-bold text-base ${getAmountColor(tx.paymentMethod)}`}>−{formatCurrency(tx.amount)}</span>;
@@ -197,7 +196,6 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
 
   return (
     <div className="bg-gray-100 min-h-full">
-      {/* Header */}
       <header className="bg-blue-700 text-white sticky top-0 z-20 shadow-lg">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
@@ -208,11 +206,14 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
                 <p className="text-xs text-blue-200">Home Stay Hotel</p>
               </div>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-sm hidden sm:inline">{appStore.currentUser?.name}</span>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              {isManager && (
+                <span className="text-sm hidden sm:inline">Manager</span>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={appStore.logout}
                 className="text-white hover:bg-blue-600"
               >
@@ -223,75 +224,76 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
         </div>
       </header>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-white border-b px-4 py-3 space-y-3">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <Input
-            placeholder="Search by guest, category, or staff..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 pl-10 text-base w-full"
-          />
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-        
-        {/* Quick Date Filters */}
-        <div className="flex gap-2">
-          {quickDateFilters.map(f => (
+      {isManager && (
+        <div className="bg-white border-b px-4 py-3 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              placeholder="Search by guest, category, or staff..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 pl-10 text-base w-full"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            {quickDateFilters.map((f) => (
+              <Button
+                key={f.value}
+                variant={dateFilter === f.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter(f.value)}
+                className={`flex-1 h-10 text-sm font-bold ${dateFilter === f.value ? 'bg-blue-600' : ''}`}
+              >
+                <Calendar className="w-4 h-4 mr-1" />
+                {f.label}
+              </Button>
+            ))}
             <Button
-              key={f.value}
-              variant={dateFilter === f.value ? 'default' : 'outline'}
+              variant={dateFilter === 'custom' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setDateFilter(f.value)}
-              className={`flex-1 h-10 text-sm font-bold ${dateFilter === f.value ? 'bg-blue-600' : ''}`}
+              onClick={() => setDateFilter('custom')}
+              className={`h-10 text-sm font-bold ${dateFilter === 'custom' ? 'bg-blue-600' : ''}`}
             >
-              <Calendar className="w-4 h-4 mr-1" />
-              {f.label}
+              Custom
             </Button>
-          ))}
-          <Button
-            variant={dateFilter === 'custom' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setDateFilter('custom')}
-            className={`h-10 text-sm font-bold ${dateFilter === 'custom' ? 'bg-blue-600' : ''}`}
-          >
-            Custom
-          </Button>
-        </div>
+          </div>
 
-        {/* Payment Method Filter */}
-        <div className="flex gap-2 flex-wrap">
-          {(['all', 'Cash', 'GCash', 'Maya', 'Bank'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMethodFilter(m)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                methodFilter === m
-                  ? m === 'Cash' ? 'bg-green-500 text-white'
-                  : m === 'GCash' ? 'bg-blue-500 text-white'
-                  : m === 'Maya' ? 'bg-purple-500 text-white'
-                  : m === 'Bank' ? 'bg-indigo-500 text-white'
-                  : 'bg-gray-700 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {m === 'all' ? 'All Methods' : m}
-            </button>
-          ))}
+          <div className="flex gap-2 flex-wrap">
+            {(['all', 'Cash', 'GCash', 'Maya', 'Bank'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMethodFilter(m)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  methodFilter === m
+                    ? m === 'Cash'
+                      ? 'bg-green-500 text-white'
+                      : m === 'GCash'
+                      ? 'bg-blue-500 text-white'
+                      : m === 'Maya'
+                      ? 'bg-purple-500 text-white'
+                      : m === 'Bank'
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-gray-700 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {m === 'all' ? 'All Methods' : m}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Custom Date Navigation (only when custom filter) */}
-      {dateFilter === 'custom' && (
+      {isManager && dateFilter === 'custom' && (
         <div className="bg-gray-50 border-b px-4 py-2">
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="sm" onClick={handlePrevDay} className="h-10 w-10">
@@ -312,8 +314,7 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
         </div>
       )}
 
-      {/* Opening Cash Setup (only for custom/today date) */}
-      {(dateFilter === 'custom' || dateFilter === 'today') && !openingCashSet && selectedDate === today && (
+      {!openingCashSet && selectedDate === today && (
         <div className="p-4">
           <Card className="border-2 border-amber-400 bg-amber-50">
             <CardHeader className="pb-3">
@@ -339,7 +340,7 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
                     className="h-14 text-xl font-bold pl-10"
                   />
                 </div>
-                <Button 
+                <Button
                   onClick={handleSetOpeningCash}
                   className="h-14 px-6 text-lg font-bold bg-amber-600 hover:bg-amber-700"
                   disabled={!openingCashInput || parseFloat(openingCashInput) < 0}
@@ -352,7 +353,6 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
         </div>
       )}
 
-      {/* Opening Cash Set Confirmation */}
       {showOpeningCashSet && (
         <div className="px-4 pb-2">
           <Alert className="bg-green-100 border-green-500">
@@ -363,98 +363,90 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
         </div>
       )}
 
-      {/* Daily Totals - Show only for Today/Custom */}
-      {(dateFilter === 'today' || dateFilter === 'custom') && (
-        <div className="p-4 space-y-4">
-          <Card className={`border-2 shadow-lg ${isNegativeBalance ? 'border-red-400' : 'border-blue-300'}`}>
-            <CardHeader className="pb-2 bg-gray-50">
-              <CardTitle className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                Daily Cash Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pt-4">
-              {/* Opening Cash */}
-              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                <span className="text-gray-600 text-lg">Opening Cash</span>
-                <span className="font-bold text-gray-800 text-xl">{formatCurrency(summary.openingCash)}</span>
-              </div>
-              
-              {/* Cash In */}
-              <div className="flex justify-between items-center py-2">
-                <span className="text-green-700 font-bold text-lg flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm">+</span>
-                  Cash In
-                </span>
-                <span className="font-bold text-green-700 text-2xl">{formatCurrency(summary.cashIn)}</span>
-              </div>
-              
-              {/* Cash Out */}
-              <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                <span className="text-red-700 font-bold text-lg flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-700 text-sm">−</span>
-                  Cash Out
-                </span>
-                <span className="font-bold text-red-700 text-2xl">{formatCurrency(summary.cashOut)}</span>
-              </div>
-              
-              {/* Expected Ending Cash */}
-              <div className={`flex justify-between items-center py-4 px-4 rounded-xl -mx-1 ${
-                isNegativeBalance 
-                  ? 'bg-red-100 border-2 border-red-400' 
-                  : 'bg-blue-100 border-2 border-blue-400'
-              }`}>
-                <span className={`font-bold text-lg ${isNegativeBalance ? 'text-red-900' : 'text-blue-900'}`}>
-                  Expected Cash on Hand
-                </span>
-                <span className={`font-bold text-3xl ${isNegativeBalance ? 'text-red-700' : 'text-blue-900'}`}>
-                  {formatCurrency(summary.expectedEndingCash)}
-                </span>
-              </div>
-
-              {isNegativeBalance && (
-                <Alert className="bg-red-50 border-red-400">
-                  <AlertCircle className="w-5 h-5 text-red-600" />
-                  <AlertDescription className="text-red-800 font-semibold">
-                    Warning: Cash balance is negative!
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Separator />
-
-              {/* Other Payment Methods */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-200">
-                  <p className="text-xs text-blue-700 font-semibold mb-1">GCash</p>
-                  <p className="font-bold text-blue-900 text-lg">{formatCurrency(summary.gCashTotal)}</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-200">
-                  <p className="text-xs text-purple-700 font-semibold mb-1">Maya</p>
-                  <p className="font-bold text-purple-900 text-lg">{formatCurrency(summary.mayaTotal)}</p>
-                </div>
-                <div className="bg-indigo-50 rounded-lg p-3 text-center border border-indigo-200">
-                  <p className="text-xs text-indigo-700 font-semibold mb-1">Bank</p>
-                  <p className="font-bold text-indigo-900 text-lg">{formatCurrency(summary.bankTotal)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* LOGBOOK TABLE */}
       <div className="p-4 space-y-4">
-        {/* Transaction Count */}
-        <div className="flex justify-between items-center px-1">
-          <p className="text-base text-gray-700">
-            Transactions: <span className="font-bold text-lg">{filteredTransactions.length}</span>
-          </p>
-          {(dateFilter === 'today' || dateFilter === 'custom') && dayTransactions.length > 0 && (
-            <p className="text-sm text-gray-500">
-              Latest: {dayTransactions[0]?.time}
+        <Card className={`border-2 shadow-lg ${isNegativeBalance ? 'border-red-400' : 'border-blue-300'}`}>
+          <CardHeader className="pb-2 bg-gray-50">
+            <CardTitle className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+              Daily Cash Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-4">
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-gray-600 text-lg">Opening Cash</span>
+              <span className="font-bold text-gray-800 text-xl">{formatCurrency(summary.openingCash)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-2">
+              <span className="text-green-700 font-bold text-lg flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm">+</span>
+                Cash In
+              </span>
+              <span className="font-bold text-green-700 text-2xl">{formatCurrency(summary.cashIn)}</span>
+            </div>
+
+            <div className="flex justify-between items-center py-2 border-b border-gray-200">
+              <span className="text-red-700 font-bold text-lg flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-700 text-sm">−</span>
+                Cash Out
+              </span>
+              <span className="font-bold text-red-700 text-2xl">{formatCurrency(summary.cashOut)}</span>
+            </div>
+
+            <div className={`flex justify-between items-center py-4 px-4 rounded-xl -mx-1 ${
+              isNegativeBalance
+                ? 'bg-red-100 border-2 border-red-400'
+                : 'bg-blue-100 border-2 border-blue-400'
+            }`}>
+              <span className={`font-bold text-lg ${isNegativeBalance ? 'text-red-900' : 'text-blue-900'}`}>
+                Expected Cash on Hand
+              </span>
+              <span className={`font-bold text-3xl ${isNegativeBalance ? 'text-red-700' : 'text-blue-900'}`}>
+                {formatCurrency(summary.expectedEndingCash)}
+              </span>
+            </div>
+
+            {isNegativeBalance && (
+              <Alert className="bg-red-50 border-red-400">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <AlertDescription className="text-red-800 font-semibold">
+                  Warning: Cash balance is negative!
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Separator />
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-200">
+                <p className="text-xs text-blue-700 font-semibold mb-1">GCash</p>
+                <p className="font-bold text-blue-900 text-lg">{formatCurrency(summary.gCashTotal)}</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-200">
+                <p className="text-xs text-purple-700 font-semibold mb-1">Maya</p>
+                <p className="font-bold text-purple-900 text-lg">{formatCurrency(summary.mayaTotal)}</p>
+              </div>
+              <div className="bg-indigo-50 rounded-lg p-3 text-center border border-indigo-200">
+                <p className="text-xs text-indigo-700 font-semibold mb-1">Bank</p>
+                <p className="font-bold text-indigo-900 text-lg">{formatCurrency(summary.bankTotal)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {isManager && (
+          <div className="flex justify-between items-center px-1">
+            <p className="text-base text-gray-700">
+              Transactions: <span className="font-bold text-lg">{filteredTransactions.length}</span>
             </p>
-          )}
-        </div>
+            {(dateFilter === 'today' || dateFilter === 'custom') && dayTransactions.length > 0 && (
+              <p className="text-sm text-gray-500">
+                Latest: {dayTransactions[0]?.time}
+              </p>
+            )}
+          </div>
+        )}
 
         <Card className="shadow-lg overflow-hidden border-2 border-gray-300">
           <CardHeader className="bg-gray-100 py-4 border-b-2 border-gray-300">
@@ -487,12 +479,12 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
                     </tr>
                   ) : (
                     filteredTransactions.map((tx, index) => {
-                      const isLatest = index === 0; // Newest first
+                      const isLatest = index === 0;
                       return (
-                        <tr 
-                          key={tx.id} 
+                        <tr
+                          key={tx.id}
                           className={`border-b hover:bg-blue-50 transition-colors ${
-                            tx.isReversal ? 'bg-red-50' : 
+                            tx.isReversal ? 'bg-red-50' :
                             tx.isSecDepMovement ? 'bg-orange-50' :
                             isLatest ? 'bg-green-50' :
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
@@ -505,12 +497,12 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
                           <td className="px-3 py-3 whitespace-nowrap">{tx.guestName || '-'}</td>
                           <td className="px-3 py-3 whitespace-nowrap text-sm">
                             {tx.roomStatusUpdate?.roomIds && tx.roomStatusUpdate.roomIds.length > 0 ? (
-                              tx.roomStatusUpdate.roomIds.map(roomId => {
-                                const room = ALL_ROOMS.find(r => r.id === roomId);
+                              tx.roomStatusUpdate.roomIds.map((roomId) => {
+                                const room = ALL_ROOMS.find((r) => r.id === roomId);
                                 return room ? `${room.displayName} - ${room.roomType}` : roomId;
                               }).join(', ')
                             ) : tx.roomBookings && tx.roomBookings.length > 0 ? (
-                              tx.roomBookings.map(rb => `${rb.roomType}${rb.quantity > 1 ? `×${rb.quantity}` : ''}`).join(', ')
+                              tx.roomBookings.map((rb) => `${rb.roomType}${rb.quantity > 1 ? `×${rb.quantity}` : ''}`).join(', ')
                             ) : (
                               '-'
                             )}
@@ -529,11 +521,9 @@ export function CashLogScreen({ appStore }: CashLogScreenProps) {
                               <span className="ml-1 text-xs text-blue-600">{tx.paymentMethod}→{tx.transferTo}</span>
                             )}
                           </td>
-                          {/* In Column - ALL payment methods */}
                           <td className="px-3 py-3 whitespace-nowrap text-right">
                             {getInAmount(tx)}
                           </td>
-                          {/* Out Column - ALL payment methods */}
                           <td className="px-3 py-3 whitespace-nowrap text-right">
                             {getOutAmount(tx)}
                           </td>

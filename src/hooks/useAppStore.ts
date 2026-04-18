@@ -112,12 +112,33 @@ export function useAppStore() {
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
   };
 
-  const login = (email: string, password: string, role?: 'staff' | 'manager' | 'hk_staff'): boolean => {
-    // Demo mode
-    if (email === 'demo@hsh.com' && password === 'demo') {
-      enableDemoMode();
-      return true;
-    }
+  const login = (email: string, password: string, role?: 'fdo' | 'manager' | 'hk') => {
+  if (!role) return false;
+
+  const user: User = {
+    id: crypto.randomUUID(),
+    email,
+    name:
+      role === 'manager'
+        ? 'Manager'
+        : role === 'hk'
+        ? 'HK Staff'
+        : 'FDO Staff',
+    role,
+    isActive: true,
+  };
+
+  setCurrentUser(user);
+  setIsDemoMode(false);
+
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  localStorage.removeItem(DEMO_MODE_KEY);
+
+  loadData();
+
+  return true;
+};
     
     // Manager login
     if ((email === 'manager@hsh.com' && password === 'manager') || role === 'manager') {

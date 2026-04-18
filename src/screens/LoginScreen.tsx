@@ -31,7 +31,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await (supabase.auth as any).signInWithPassword({
         email,
         password,
       });
@@ -53,8 +53,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       }
 
       onLogin(email, password, roleData.role as UserRole);
-
-    } catch (err) {
+    } catch {
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);

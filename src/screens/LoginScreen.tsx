@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Hotel, Eye, EyeOff, LogIn, Play } from 'lucide-react';
+import { Hotel, Eye, EyeOff, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '../supabase'
+import { supabase } from '../supabase';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +15,6 @@ interface LoginScreenProps {
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('fdo')
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -23,63 +22,42 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
-    
+
     setIsLoading(true);
-    
-  try {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
 
-  if (error) {
-    setError('Invalid email or password');
-    return;
-  }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-  const { data: roleData, error: roleError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', data.user.id)
-    .single();
-
-  if (roleError || !roleData) {
-    setError('No role assigned');
-    return;
-  }
-
-  onLogin(email, password, roleData.role as UserRole);
-
-} catch (err) {
-  setError('Login failed. Please try again.');
-} finally {
-  setIsLoading(false);
-}
-  };
-
-  const handleDemoMode = (role: 'staff' | 'hk_staff') => {
-    const demoEmails: Record<'staff' | 'hk_staff', string> = {
-      'staff': 'staff@hsh.com',
-      'hk_staff': 'hk@hsh.com'
-    };
-    setEmail(demoEmails[role]);
-    setPassword(role);
-    setSelectedRole(role);
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      try {
-        onLogin(demoEmails[role], role, role);
-      } catch (err) {
-        setError('Demo mode failed. Please try again.');
-        setIsLoading(false);
+      if (error) {
+        setError('Invalid email or password');
+        return;
       }
-    }, 100);
+
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (roleError || !roleData) {
+        setError('No role assigned');
+        return;
+      }
+
+      onLogin(email, password, roleData.role as UserRole);
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -99,7 +77,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             Digital Cash Logbook + Room Status
           </p>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {error && (
             <Alert variant="destructive" className="text-sm">
@@ -108,35 +86,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <Label className="text-base font-medium">Login As</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('staff')}
-                  className={`p-3 rounded-xl border-2 font-semibold text-sm transition-all ${
-                    selectedRole === 'staff'
-                      ? 'bg-blue-500 border-blue-600 text-white'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
-                  }`}
-                >
-                  FDO Staff
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole('hk_staff')}
-                  className={`p-3 rounded-xl border-2 font-semibold text-sm transition-all ${
-                    selectedRole === 'hk_staff'
-                      ? 'bg-orange-500 border-orange-600 text-white'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-orange-300'
-                  }`}
-                >
-                  HK Staff
-                </button>
-              </div>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="email" className="text-base font-medium">Email</Label>
               <Input
@@ -190,42 +139,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               )}
             </Button>
           </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Quick Demo</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              onClick={() => handleDemoMode('staff')}
-              variant="outline"
-              className="h-12 text-sm font-semibold border-2 border-blue-500 text-blue-700 hover:bg-blue-50"
-              disabled={isLoading}
-            >
-              <Play className="w-4 h-4 mr-1" />
-              FDO
-            </Button>
-            <Button
-              onClick={() => handleDemoMode('hk_staff')}
-              variant="outline"
-              className="h-12 text-sm font-semibold border-2 border-orange-500 text-orange-700 hover:bg-orange-50"
-              disabled={isLoading}
-            >
-              <Play className="w-4 h-4 mr-1" />
-              HK
-            </Button>
-          </div>
-
-          <div className="text-center text-sm text-gray-500 space-y-1 pt-2">
-            <p className="font-medium">Demo credentials:</p>
-            <p><strong>staff@hsh.com</strong> / <strong>staff</strong> (FDO)</p>
-            <p><strong>hk@hsh.com</strong> / <strong>hk_staff</strong> (HK Staff)</p>
-          </div>
         </CardContent>
       </Card>
     </div>

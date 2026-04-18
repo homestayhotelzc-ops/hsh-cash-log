@@ -36,13 +36,18 @@ function App() {
   }
 
   const handleLogin = (email: string, password: string, role?: 'fdo' | 'manager' | 'hk') => {
-    const success = appStore.login(email, password, role);
-    // If HK Staff, redirect to Rooms tab
-    if (success && role === 'hk_staff') {
-      setCurrentScreen('room-status');
-    }
-    return success;
-  };
+  const success = appStore.login(email, password, role);
+
+  if (success && role === 'manager') {
+    setCurrentScreen('manager-view');
+  } else if (success && role === 'hk') {
+    setCurrentScreen('room-status');
+  } else if (success) {
+    setCurrentScreen('cash-log');
+  }
+
+  return success;
+};
 
   if (!appStore.currentUser) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -148,7 +153,7 @@ function App() {
       <BottomNav 
         currentScreen={currentScreen}
         onNavigate={navigateTo}
-        userRole={appStore.currentUser?.role || 'staff'}
+        userRole={appStore.currentUser?.role || 'fdo'}
       />
     </div>
   );

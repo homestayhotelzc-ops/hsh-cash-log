@@ -53,6 +53,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
       }
 
       onLogin(email, password, roleData.role as UserRole);
+
     } catch (err) {
       setError('Login failed. Please try again.');
     } finally {

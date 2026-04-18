@@ -11,8 +11,8 @@ export const demoManager: User = {
 export const demoStaff: User = {
   id: 'demo-staff-001',
   email: 'staff@hsh.com',
-  name: 'Staff Demo',
-  role: 'staff',
+  name: 'FDO Staff',
+  role: 'fdo', // FIXED
   isActive: true
 };
 

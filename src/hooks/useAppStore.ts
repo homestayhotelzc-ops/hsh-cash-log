@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Transaction, User, CashCount, DailySummary } from '@/types';
-import { demoManager, generateDemoTransactions } from '@/data/demoData';
+import { generateDemoTransactions } from '@/data/demoData';
 
 const OPENING_CASH_MAP_KEY = 'hsh_opening_cash_map';
 const TRANSACTIONS_KEY = 'hsh_transactions';
@@ -42,7 +42,7 @@ export function useAppStore() {
         try {
           const user = JSON.parse(savedUser) as User;
           setCurrentUser(user);
-          loadData();
+          loadData(false);
         } catch {
           logout();
         }
@@ -64,7 +64,9 @@ export function useAppStore() {
     }
   }, [currentUser]);
 
-  const loadData = () => {
+  const loadData = (demoMode: boolean = isDemoMode) => {
+    if (demoMode) return;
+
     const savedOpeningCashMap = localStorage.getItem(OPENING_CASH_MAP_KEY);
     const savedTransactions = localStorage.getItem(TRANSACTIONS_KEY);
     const savedCashCounts = localStorage.getItem(CASH_COUNTS_KEY);
@@ -75,6 +77,8 @@ export function useAppStore() {
       } catch {
         setOpeningCashMap({});
       }
+    } else {
+      setOpeningCashMap({});
     }
 
     if (savedTransactions) {
@@ -83,6 +87,8 @@ export function useAppStore() {
       } catch {
         setTransactions([]);
       }
+    } else {
+      setTransactions([]);
     }
 
     if (savedCashCounts) {
@@ -91,6 +97,8 @@ export function useAppStore() {
       } catch {
         setCashCounts([]);
       }
+    } else {
+      setCashCounts([]);
     }
   };
 
@@ -99,23 +107,42 @@ export function useAppStore() {
     newOpeningCashMap: Record<string, number>,
     newCashCounts: CashCount[]
   ) => {
+    if (isDemoMode) return;
+
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
     localStorage.setItem(OPENING_CASH_MAP_KEY, JSON.stringify(newOpeningCashMap));
     localStorage.setItem(CASH_COUNTS_KEY, JSON.stringify(newCashCounts));
   };
 
   const enableDemoMode = () => {
+    const demoUser: User = {
+      id: 'demo-fdo-training',
+      email: 'demo@hsh.com',
+      name: 'FDO Training',
+      role: 'fdo',
+      isActive: true,
+    };
+
     setIsDemoMode(true);
-    setCurrentUser(demoManager);
+    setCurrentUser(demoUser);
+
+    // keep demo completely separate from real data
     setOpeningCashMap({});
     setTransactions(generateDemoTransactions());
     setCashCounts([]);
+
     localStorage.setItem(DEMO_MODE_KEY, 'true');
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(demoManager));
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(demoUser));
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
   };
 
   const login = (email: string, _password: string, role?: 'fdo' | 'manager' | 'hk') => {
+    // DEMO LOGIN
+    if (email === 'demo@hsh.com') {
+      enableDemoMode();
+      return true;
+    }
+
     if (!role) return false;
 
     const user: User = {
@@ -136,7 +163,7 @@ export function useAppStore() {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
     localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
     localStorage.removeItem(DEMO_MODE_KEY);
-    loadData();
+    loadData(false);
 
     return true;
   };

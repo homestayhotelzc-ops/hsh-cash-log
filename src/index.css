@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-hotel-bg text-hotel-text transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-hotel-dark-bg text-hotel-dark-text;
+  }
+
+  * {
+    @apply transition-colors duration-150;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-hotel-surface dark:bg-hotel-dark-surface;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-hotel-border dark:bg-hotel-dark-border rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-hotel-muted dark:bg-hotel-dark-muted;
+  }
+}
+
+@layer components {
+  /* Card base */
+  .hotel-card {
+    @apply bg-hotel-card dark:bg-hotel-dark-card border border-hotel-border dark:border-hotel-dark-border rounded-2xl shadow-hotel dark:shadow-hotel-dark;
+  }
+
+  /* Input base */
+  .hotel-input {
+    @apply w-full bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border rounded-xl px-4 py-2.5 text-hotel-text dark:text-hotel-dark-text placeholder-hotel-muted dark:placeholder-hotel-dark-muted focus:outline-none focus:ring-2 focus:ring-hotel-accent dark:focus:ring-hotel-dark-accent focus:border-transparent text-sm;
+  }
+
+  /* Select base */
+  .hotel-select {
+    @apply hotel-input cursor-pointer;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply bg-hotel-accent text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-hotel-text dark:hover:bg-hotel-dark-text dark:hover:text-hotel-dark-bg transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border text-hotel-text dark:text-hotel-dark-text rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-hotel-border dark:hover:bg-hotel-dark-border transition-all duration-200 active:scale-95;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply text-hotel-muted dark:text-hotel-dark-muted hover:text-hotel-text dark:hover:text-hotel-dark-text hover:bg-hotel-surface dark:hover:bg-hotel-dark-surface rounded-xl px-3 py-2 text-sm transition-all duration-200 active:scale-95;
+  }
+
+  /* Label */
+  .hotel-label {
+    @apply block text-xs font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider mb-1.5;
+  }
+
+  /* Section heading */
+  .section-heading {
+    @apply text-sm font-semibold text-hotel-text dark:text-hotel-dark-text;
+  }
+
+  /* Amount positive */
+  .amount-positive {
+    @apply text-emerald-600 dark:text-emerald-400 font-semibold;
+  }
+
+  /* Amount negative */
+  .amount-negative {
+    @apply text-red-600 dark:text-red-400 font-semibold;
+  }
+
+  /* Amount neutral */
+  .amount-neutral {
+    @apply text-hotel-muted dark:text-hotel-dark-muted font-semibold;
+  }
+}
+
+/* Smooth modal backdrop */
+.modal-backdrop {
+  animation: backdropFadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: modalSlideUp 0.25s ease-out;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 export default function Header() {
   const { dark, toggleTheme } = useTheme()
   const { selectedDate, setSelectedDate } = useData()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
 
   const dateObj = parseISO(selectedDate)
   const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
@@ -79,13 +79,13 @@ export default function Header() {
           </button>
 
           {/* User avatar — desktop only (sidebar shows name + logout) */}
-          {profile && (
+          {(profile || user) && (
             <div
               className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg bg-hotel-accent ml-1"
-              title={`${profile.full_name} · ${profile.role.replace('_', ' ')}`}
+              title={profile?.full_name ?? user?.email ?? ''}
             >
               <span className="text-white text-[11px] font-bold">
-                {profile.full_name.charAt(0).toUpperCase()}
+                {(profile?.full_name ?? user?.email ?? '?').charAt(0).toUpperCase()}
               </span>
             </div>
           )}

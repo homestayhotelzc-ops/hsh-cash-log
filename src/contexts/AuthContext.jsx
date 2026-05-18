@@ -1,68 +1,91 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+// ── provider ──────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState(null)   // display / reporting only — never gates access
+  const [loading, setLoading] = useState(true)    // true only while we don't yet know auth state
 
-  // Keep a ref so async fetchProfile calls can be cancelled if the user changes
   const mountedRef = useRef(true)
-  useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => () => { mountedRef.current = false }, [])
 
-  async function fetchProfile(userId) {
-    if (!supabase || !userId) return null
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
-    return data ?? null
-  }
+  // ── background profile fetch ─────────────────────────────────────────────
+  // Deliberately NOT awaited before setLoading(false).
+  // Profile is used only for display names / reporting — it must never block app access.
+  const fetchProfileBg = useCallback(async (userId) => {
+    if (!supabase || !userId) return
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+      if (mountedRef.current) setProfile(data ?? null)
+    } catch {
+      // Network error or timeout — profile stays null; app still works
+    }
+  }, [])
 
   useEffect(() => {
-    mountedRef.current = true   // reset on every mount, including Strict Mode remount
+    mountedRef.current = true
 
     if (!isConfigured || !supabase) {
       setLoading(false)
       return
     }
 
-    // Restore session on mount
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const u = session?.user ?? null
+    // ── Hard 5-second timeout ─────────────────────────────────────────────
+    // If getSession never resolves (stale TCP after tab switch / device sleep),
+    // we still clear the loading state so the app never shows an infinite spinner.
+    const hardTimeout = setTimeout(() => {
+      if (mountedRef.current) setLoading(false)
+    }, 5_000)
+
+    // ── Resolve initial session — the ONLY thing that gates loading ───────
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (!mountedRef.current) return
+        clearTimeout(hardTimeout)
+        const u = session?.user ?? null
+        setUser(u)
+        setLoading(false)
+        if (u) fetchProfileBg(u.id)   // fire-and-forget — never awaited
+      })
+      .catch(() => {
+        // getSession threw / timed out — clear loading; user=null → redirected to /login
+        if (mountedRef.current) {
+          clearTimeout(hardTimeout)
+          setLoading(false)
+        }
+      })
+
+    // ── React to auth events (sign-in, sign-out, token refresh) ──────────
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mountedRef.current) return
-      setUser(u)
-      if (u) {
-        const p = await fetchProfile(u.id)
-        if (mountedRef.current) setProfile(p)
-      }
+      const u = session?.user ?? null
+
+      // Preserve object reference when the token refreshed but same user ID.
+      // A new reference would cause DataContext to refetch unnecessarily.
+      setUser((prev) => (prev?.id === u?.id ? prev : u))
+
+      // Always clear loading — we now know auth state regardless of profile
       setLoading(false)
+
+      if (u) {
+        fetchProfileBg(u.id)
+      } else {
+        setProfile(null)
+      }
     })
 
-    // Listen for sign-in / sign-out events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        const u = session?.user ?? null
-        if (!mountedRef.current) return
-        // Preserve object reference when only the token refreshed (same user ID).
-        // A new reference would cause DataContext to re-run fetchAll on a
-        // potentially-stale network connection, leading to an infinite loading state.
-        setUser((prev) => (prev?.id === u?.id ? prev : u))
-        if (u) {
-          const p = await fetchProfile(u.id)
-          if (mountedRef.current) setProfile(p)
-        } else {
-          setProfile(null)
-        }
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      clearTimeout(hardTimeout)
+      subscription.unsubscribe()
+    }
+  }, [fetchProfileBg])
 
   async function signIn(email, password) {
     if (!supabase) throw new Error('Supabase not configured')
@@ -73,24 +96,12 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     if (!supabase) return
+    setProfile(null)
     await supabase.auth.signOut()
   }
 
-  const isManager      = profile?.role === 'manager'
-  const isFrontDesk    = profile?.role === 'front_desk'
-  const isHousekeeping = profile?.role === 'housekeeping'
-
   return (
-    <AuthContext.Provider value={{
-      user,
-      profile,
-      loading,
-      signIn,
-      signOut,
-      isManager,
-      isFrontDesk,
-      isHousekeeping,
-    }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

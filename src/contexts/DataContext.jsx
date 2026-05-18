@@ -21,6 +21,19 @@ function safeArray(val) {
   return []
 }
 
+/**
+ * Race a Supabase query against a timeout so a stale TCP connection
+ * (e.g. after a browser tab switch or device sleep) cannot hang forever.
+ */
+function withTimeout(promise, ms = 10_000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Query timed out after ${ms}ms`)), ms)
+    ),
+  ])
+}
+
 export function calcEntryAmounts(transactions) {
   let cashIn = 0, cashOut = 0, nonCash = 0
   safeArray(transactions).forEach((t) => {
@@ -143,6 +156,7 @@ export function DataProvider({ children }) {
   const [voidedEntries, setVoidedEntries] = useState([])
   const [voidedExpenses, setVoidedExpenses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
 
   // ── fetch ────────────────────────────────────────────────────
   const fetchAll = useCallback(async (date) => {
@@ -151,53 +165,72 @@ export function DataProvider({ children }) {
       return
     }
     setLoading(true)
+    setFetchError(null)
     try {
+      // Use Promise.allSettled + per-query timeout so a single stale connection
+      // (tab switch, device sleep) cannot block the entire fetch indefinitely.
+      const TIMEOUT = 10_000
       const [
-        { data: entriesData },
-        { data: expensesData },
-        { data: openingData },
-        { data: staffData },
-        { data: profilesData },
-        { data: voidedEntriesData },
-        { data: voidedExpensesData },
-      ] = await Promise.all([
-        supabase
-          .from('cash_entries')
-          .select('*')
-          .eq('date', date)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('expenses')
-          .select('*')
-          .eq('date', date)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('opening_cash')
-          .select('*')
-          .eq('date', date)
-          .maybeSingle(),
-        supabase.from('staff').select('*').eq('active', true).order('name'),
-        supabase.from('profiles').select('*').order('full_name'),
-        supabase
-          .from('voided_entries')
-          .select('*')
-          .order('voided_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('voided_expenses')
-          .select('*')
-          .order('voided_at', { ascending: false })
-          .limit(100),
+        entriesRes,
+        expensesRes,
+        openingRes,
+        staffRes,
+        profilesRes,
+        voidedEntriesRes,
+        voidedExpensesRes,
+      ] = await Promise.allSettled([
+        withTimeout(
+          supabase.from('cash_entries').select('*').eq('date', date).order('created_at', { ascending: false }),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('expenses').select('*').eq('date', date).order('created_at', { ascending: false }),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('opening_cash').select('*').eq('date', date).maybeSingle(),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('staff').select('*').eq('active', true).order('name'),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('profiles').select('*').order('full_name'),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('voided_entries').select('*').order('voided_at', { ascending: false }).limit(100),
+          TIMEOUT
+        ),
+        withTimeout(
+          supabase.from('voided_expenses').select('*').order('voided_at', { ascending: false }).limit(100),
+          TIMEOUT
+        ),
       ])
-      setEntries(entriesData ?? [])
-      setExpenses(expensesData ?? [])
-      setOpeningCashRecord(openingData ?? null)
-      setStaff(staffData ?? [])
-      setProfiles(profilesData ?? [])
-      setVoidedEntries(voidedEntriesData ?? [])
-      setVoidedExpenses(voidedExpensesData ?? [])
+
+      // Apply results — fall back to empty / null when a query failed or timed out
+      setEntries(       entriesRes.status       === 'fulfilled' ? (entriesRes.value.data       ?? [])   : [])
+      setExpenses(      expensesRes.status      === 'fulfilled' ? (expensesRes.value.data      ?? [])   : [])
+      setOpeningCashRecord(openingRes.status    === 'fulfilled' ? (openingRes.value.data       ?? null) : null)
+      setStaff(         staffRes.status         === 'fulfilled' ? (staffRes.value.data         ?? [])   : [])
+      setProfiles(      profilesRes.status      === 'fulfilled' ? (profilesRes.value.data      ?? [])   : [])
+      setVoidedEntries( voidedEntriesRes.status === 'fulfilled' ? (voidedEntriesRes.value.data ?? [])   : [])
+      setVoidedExpenses(voidedExpensesRes.status === 'fulfilled' ? (voidedExpensesRes.value.data ?? []) : [])
+
+      // Surface a non-blocking error banner if any query failed
+      const failedCount = [
+        entriesRes, expensesRes, openingRes, staffRes,
+        profilesRes, voidedEntriesRes, voidedExpensesRes,
+      ].filter((r) => r.status === 'rejected').length
+      if (failedCount > 0) {
+        setFetchError(
+          `${failedCount} of 7 quer${failedCount === 1 ? 'y' : 'ies'} failed — data may be incomplete. Tap Retry.`
+        )
+      }
     } catch (err) {
-      console.error('DataContext fetchAll error:', err)
+      console.error('[Data] fetchAll error:', err)
+      setFetchError('Failed to load data. Check your connection and tap Retry.')
     } finally {
       setLoading(false)
     }
@@ -214,6 +247,7 @@ export function DataProvider({ children }) {
       setProfiles([])
       setVoidedEntries([])
       setVoidedExpenses([])
+      setFetchError(null)
       setLoading(false)
       return
     }
@@ -265,11 +299,12 @@ export function DataProvider({ children }) {
         ...amounts,
         date: selectedDate,
         status: 'active',
-        // Auth-derived identity — overrides any caller-supplied values
+        // Auth-derived identity — overrides any caller-supplied values.
+        // Falls back to email when profile hasn't loaded yet.
         staff_id:            u?.id   ?? payload.staff_id   ?? null,
-        staff_name:          p?.full_name ?? payload.staff_name ?? null,
+        staff_name:          p?.full_name ?? u?.email ?? payload.staff_name ?? null,
         created_by_user_id:  u?.id   ?? null,
-        created_by_name:     p?.full_name ?? null,
+        created_by_name:     p?.full_name ?? u?.email ?? null,
         created_by_role:     p?.role ?? null,
       }
       const { data, error } = await supabase
@@ -292,11 +327,12 @@ export function DataProvider({ children }) {
         ...payload,
         date: selectedDate,
         status: 'active',
-        // Auth-derived identity — overrides any caller-supplied values
+        // Auth-derived identity — overrides any caller-supplied values.
+        // Falls back to email when profile hasn't loaded yet.
         staff_id:            u?.id   ?? payload.staff_id   ?? null,
-        staff_name:          p?.full_name ?? payload.staff_name ?? null,
+        staff_name:          p?.full_name ?? u?.email ?? payload.staff_name ?? null,
         created_by_user_id:  u?.id   ?? null,
-        created_by_name:     p?.full_name ?? null,
+        created_by_name:     p?.full_name ?? u?.email ?? null,
         created_by_role:     p?.role ?? null,
       }
       const { data, error } = await supabase
@@ -416,6 +452,7 @@ export function DataProvider({ children }) {
         voidedEntries,
         voidedExpenses,
         loading,
+        fetchError,
         totals,
         refetch: () => fetchAll(selectedDate),
         saveEntry,

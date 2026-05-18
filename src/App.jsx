@@ -33,43 +33,10 @@ export default function App() {
                 }
               >
                 <Route index element={<Dashboard />} />
-
-                <Route
-                  path="add-entry"
-                  element={
-                    <RequireAuth allowedRoles={['manager', 'front_desk']}>
-                      <AddEntry />
-                    </RequireAuth>
-                  }
-                />
-
-                <Route
-                  path="expenses"
-                  element={
-                    <RequireAuth allowedRoles={['manager', 'front_desk']}>
-                      <Expenses />
-                    </RequireAuth>
-                  }
-                />
-
-                <Route
-                  path="summary"
-                  element={
-                    <RequireAuth allowedRoles={['manager', 'front_desk']}>
-                      <Summary />
-                    </RequireAuth>
-                  }
-                />
-
-                {/* Manager-only */}
-                <Route
-                  path="staff"
-                  element={
-                    <RequireAuth allowedRoles={['manager']}>
-                      <Staff />
-                    </RequireAuth>
-                  }
-                />
+                <Route path="add-entry" element={<AddEntry />} />
+                <Route path="expenses"  element={<Expenses />} />
+                <Route path="summary"   element={<Summary />} />
+                <Route path="staff"     element={<Staff />} />
               </Route>
 
             </Routes>

@@ -32,7 +32,7 @@ const STEPS = [
 
 export default function AddEntry() {
   const { saveEntry, selectedDate } = useData()
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
 
   const [step, setStep] = useState(1)
   const [guestName, setGuestName] = useState('')
@@ -176,21 +176,25 @@ export default function AddEntry() {
           </div>
 
           {/* Logged-in staff indicator */}
-          {profile && (
-            <div className="flex items-center gap-2 text-xs text-hotel-muted dark:text-hotel-dark-muted bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border rounded-xl px-4 py-2.5">
-              <div className="w-5 h-5 rounded-lg bg-hotel-accent flex items-center justify-center shrink-0">
-                <span className="text-white text-[9px] font-bold leading-none">
-                  {profile.full_name.charAt(0).toUpperCase()}
+          {(profile || user) && (() => {
+            const name = profile?.full_name ?? user?.email ?? ''
+            if (!name) return null
+            return (
+              <div className="flex items-center gap-2 text-xs text-hotel-muted dark:text-hotel-dark-muted bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border rounded-xl px-4 py-2.5">
+                <div className="w-5 h-5 rounded-lg bg-hotel-accent flex items-center justify-center shrink-0">
+                  <span className="text-white text-[9px] font-bold leading-none">
+                    {name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <span>
+                  Logged as{' '}
+                  <span className="font-semibold text-hotel-text dark:text-hotel-dark-text">
+                    {name}
+                  </span>
                 </span>
               </div>
-              <span>
-                Logged as{' '}
-                <span className="font-semibold text-hotel-text dark:text-hotel-dark-text">
-                  {profile.full_name}
-                </span>
-              </span>
-            </div>
-          )}
+            )
+          })()}
         </div>
       )}
 
@@ -343,10 +347,12 @@ export default function AddEntry() {
               <span className="text-hotel-muted dark:text-hotel-dark-muted">Guest</span>
               <span className="font-medium text-hotel-text dark:text-hotel-dark-text">{guestName}</span>
             </div>
-            {profile && (
+            {(profile?.full_name ?? user?.email) && (
               <div className="flex justify-between text-sm">
                 <span className="text-hotel-muted dark:text-hotel-dark-muted">Staff</span>
-                <span className="text-hotel-text dark:text-hotel-dark-text">{profile.full_name}</span>
+                <span className="text-hotel-text dark:text-hotel-dark-text">
+                  {profile?.full_name ?? user?.email}
+                </span>
               </div>
             )}
             <div className="flex justify-between text-sm">

@@ -27,7 +27,7 @@ export default function Dashboard() {
   const {
     totals, activeEntries, activeExpenses,
     voidedEntries, voidedExpenses,
-    loading, refetch, selectedDate,
+    loading, fetchError, refetch, selectedDate,
   } = useData()
 
   const [filter, setFilter] = useState('all')
@@ -127,6 +127,22 @@ export default function Dashboard() {
           />
         </button>
       </div>
+
+      {/* ── Fetch error / retry banner ──────────────────────────── */}
+      {fetchError && (
+        <div className="hotel-card p-4 border-l-4 border-red-400 flex items-center justify-between gap-3">
+          <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed flex-1">
+            {fetchError}
+          </p>
+          <button
+            onClick={refetch}
+            className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-hotel-accent dark:text-hotel-dark-accent hover:opacity-80 transition-opacity"
+          >
+            <RefreshCw size={12} />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* ── Demo mode banner ────────────────────────────────────── */}
       {!isConfigured && (

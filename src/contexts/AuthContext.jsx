@@ -23,6 +23,8 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    mountedRef.current = true   // reset on every mount, including Strict Mode remount
+
     if (!isConfigured || !supabase) {
       setLoading(false)
       return
@@ -45,7 +47,10 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         const u = session?.user ?? null
         if (!mountedRef.current) return
-        setUser(u)
+        // Preserve object reference when only the token refreshed (same user ID).
+        // A new reference would cause DataContext to re-run fetchAll on a
+        // potentially-stale network connection, leading to an infinite loading state.
+        setUser((prev) => (prev?.id === u?.id ? prev : u))
         if (u) {
           const p = await fetchProfile(u.id)
           if (mountedRef.current) setProfile(p)

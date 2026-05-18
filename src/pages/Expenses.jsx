@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import {
-  Package, Wrench, Wind, Car, Utensils, RotateCcw, MoreHorizontal,
+  Package, Wrench, Wind, Car, Utensils, RotateCcw, MoreHorizontal, Banknote,
   Plus, Trash2, CheckCircle, AlertCircle, Clock, User, Inbox, Save,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { useData } from '../contexts/DataContext'
+import { useAuth } from '../contexts/AuthContext'
 import { isConfigured } from '../lib/supabase'
 import PaymentBadge from '../components/PaymentBadge'
 import VoidConfirmModal from '../components/VoidConfirmModal'
@@ -16,8 +17,9 @@ const CATEGORY_CONFIG = [
   { id: 'Laundry',        icon: Wind,            label: 'Laundry'      },
   { id: 'Transportation', icon: Car,             label: 'Transport'    },
   { id: 'Food',           icon: Utensils,        label: 'Food'         },
-  { id: 'Refund',         icon: RotateCcw,       label: 'Refund'       },
-  { id: 'Other',          icon: MoreHorizontal,  label: 'Other'        },
+  { id: 'Refund',              icon: RotateCcw,      label: 'Refund'      },
+  { id: "Owner's Withdrawal", icon: Banknote,       label: 'Withdrawal'  },
+  { id: 'Other',              icon: MoreHorizontal, label: 'Other'       },
 ]
 
 const CATEGORY_IDS = CATEGORY_CONFIG.map((c) => c.id)
@@ -35,12 +37,12 @@ function CategoryIcon({ id, size = 13, ...rest }) {
 }
 
 export default function Expenses() {
-  const { staff, saveExpense, voidExpense, activeExpenses, loading, selectedDate } = useData()
+  const { saveExpense, voidExpense, activeExpenses, loading, selectedDate } = useData()
+  const { profile } = useAuth()
 
   const [category, setCategory] = useState('Supplies')
   const [amount, setAmount]     = useState('')
   const [method, setMethod]     = useState('Cash')
-  const [staffId, setStaffId]   = useState('')
   const [notes, setNotes]       = useState('')
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -60,13 +62,11 @@ export default function Expenses() {
     setSaving(true)
     setError('')
     try {
-      const staffMember = staff.find((s) => s.id === staffId)
+      // staff_id / staff_name / created_by_* auto-populated by DataContext from auth
       await saveExpense({
         category,
         amount: Number(amount),
         payment_method: method,
-        staff_id: staffId || null,
-        staff_name: staffMember?.name ?? null,
         notes: notes.trim(),
       })
       setSaved(true)
@@ -189,20 +189,22 @@ export default function Expenses() {
           </div>
         </div>
 
-        {/* Staff */}
-        <div>
-          <label className="hotel-label">Staff</label>
-          <select
-            className="hotel-select"
-            value={staffId}
-            onChange={(e) => setStaffId(e.target.value)}
-          >
-            <option value="">— Select staff —</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        {/* Logged-in staff indicator */}
+        {profile && (
+          <div className="flex items-center gap-2 text-xs text-hotel-muted dark:text-hotel-dark-muted bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border rounded-xl px-4 py-2.5">
+            <div className="w-5 h-5 rounded-lg bg-hotel-accent flex items-center justify-center shrink-0">
+              <span className="text-white text-[9px] font-bold leading-none">
+                {profile.full_name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <span>
+              Logged as{' '}
+              <span className="font-semibold text-hotel-text dark:text-hotel-dark-text">
+                {profile.full_name}
+              </span>
+            </span>
+          </div>
+        )}
 
         {/* Notes */}
         <div>

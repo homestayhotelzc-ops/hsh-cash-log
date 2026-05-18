@@ -3,10 +3,12 @@ import { Sun, Moon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, addDays, subDays, parseISO } from 'date-fns'
 import { useTheme } from '../contexts/ThemeContext'
 import { useData } from '../contexts/DataContext'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Header() {
   const { dark, toggleTheme } = useTheme()
   const { selectedDate, setSelectedDate } = useData()
+  const { profile } = useAuth()
 
   const dateObj = parseISO(selectedDate)
   const isToday = selectedDate === format(new Date(), 'yyyy-MM-dd')
@@ -14,7 +16,8 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 bg-hotel-bg/90 dark:bg-hotel-dark-bg/90 backdrop-blur-md border-b border-hotel-border dark:border-hotel-dark-border">
       <div className="flex items-center justify-between px-4 md:px-6 h-14">
-        {/* Logo — hidden on desktop since sidebar has it */}
+
+        {/* Logo — hidden on desktop (sidebar has it) */}
         <div className="flex items-center gap-2 md:hidden">
           <div className="w-7 h-7 rounded-lg bg-hotel-accent flex items-center justify-center">
             <span className="text-white text-xs font-bold">H</span>
@@ -61,18 +64,32 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-xl hover:bg-hotel-surface dark:hover:bg-hotel-dark-surface transition-colors ml-2"
-          aria-label="Toggle theme"
-        >
-          {dark ? (
-            <Sun size={16} className="text-hotel-dark-accent" />
-          ) : (
-            <Moon size={16} className="text-hotel-muted" />
+        {/* Right controls */}
+        <div className="flex items-center gap-1">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl hover:bg-hotel-surface dark:hover:bg-hotel-dark-surface transition-colors"
+            aria-label="Toggle theme"
+          >
+            {dark
+              ? <Sun  size={16} className="text-hotel-dark-accent" />
+              : <Moon size={16} className="text-hotel-muted" />
+            }
+          </button>
+
+          {/* User avatar — desktop only (sidebar shows name + logout) */}
+          {profile && (
+            <div
+              className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg bg-hotel-accent ml-1"
+              title={`${profile.full_name} · ${profile.role.replace('_', ' ')}`}
+            >
+              <span className="text-white text-[11px] font-bold">
+                {profile.full_name.charAt(0).toUpperCase()}
+              </span>
+            </div>
           )}
-        </button>
+        </div>
       </div>
     </header>
   )

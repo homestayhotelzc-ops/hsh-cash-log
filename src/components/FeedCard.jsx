@@ -28,7 +28,8 @@ function ExpenseFeedCard({ data, isVoided, onClick }) {
 
   const ICONS = {
     Supplies: '🧹', Maintenance: '🔧', Laundry: '👕',
-    Transportation: '🚗', Food: '🍱', Refund: '↩️', Other: '📦',
+    Transportation: '🚗', Food: '🍱', Refund: '↩️',
+    "Owner's Withdrawal": '💸', Other: '📦',
   }
 
   return (
@@ -132,6 +133,10 @@ function EntryFeedCard({ data, isVoided, onClick }) {
   })
   const cashImpact = _ci - _co
   const nonCashDisplay = _nc
+  // Revenue = cashIn + nonCash (adjustments excluded from revenue)
+  const totalRevenue = _ci + _nc
+  // Pure non-cash: no cash in, no adjustments — only GCash/Maya/Bank
+  const isPureNonCash = _ci === 0 && _co === 0 && _nc > 0
 
   const impactClass =
     isVoided ? 'text-hotel-muted dark:text-hotel-dark-muted'
@@ -206,15 +211,30 @@ function EntryFeedCard({ data, isVoided, onClick }) {
               )}
             </div>
 
-            {/* Right: amount */}
+            {/* Right: amount
+                Pure non-cash → show revenue in neutral (not ₱0.00).
+                Mixed / cash → show net cash impact with sub-line for non-cash. */}
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className={`text-base font-bold ${impactClass}`}>
-                {!isVoided && cashImpact >= 0 ? '+' : ''}{fmt(cashImpact)}
-              </span>
-              {nonCashDisplay > 0 && (
-                <span className="text-[10px] text-hotel-muted dark:text-hotel-dark-muted">
-                  {fmt(nonCashDisplay)} non-cash
-                </span>
+              {isPureNonCash && !isVoided ? (
+                <>
+                  <span className="text-base font-bold text-hotel-text dark:text-hotel-dark-text">
+                    {fmt(nonCashDisplay)}
+                  </span>
+                  <span className="text-[10px] text-hotel-muted dark:text-hotel-dark-muted">
+                    non-cash
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className={`text-base font-bold ${isVoided ? 'text-hotel-muted dark:text-hotel-dark-muted line-through' : impactClass}`}>
+                    {!isVoided && cashImpact > 0 ? '+' : ''}{fmt(isVoided ? totalRevenue : cashImpact)}
+                  </span>
+                  {nonCashDisplay > 0 && (
+                    <span className="text-[10px] text-hotel-muted dark:text-hotel-dark-muted">
+                      {fmt(nonCashDisplay)} non-cash
+                    </span>
+                  )}
+                </>
               )}
               <ChevronRight size={13} className="text-hotel-border dark:text-hotel-dark-border mt-0.5" />
             </div>

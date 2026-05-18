@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import {
-  Wallet, TrendingUp, TrendingDown, DollarSign, CreditCard,
-  ShoppingBag, Activity, Users, Lock, Unlock, Save,
-  CheckCircle, AlertTriangle, Clock, Trash2, Receipt, RefreshCw,
+  Wallet, TrendingUp, CreditCard,
+  Users, Lock, Unlock, Save,
+  CheckCircle, AlertTriangle, Clock, Trash2, Hash,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { useData, computeEntryDisplay } from '../contexts/DataContext'
@@ -198,96 +198,79 @@ export default function Summary() {
         )}
       </section>
 
-      {/* ── Summary Cards ─────────────────────────────── */}
-      <section className="hotel-card p-5 space-y-0">
-        <h2 className="section-heading flex items-center gap-2 mb-3">
-          <Activity size={15} className="text-hotel-accent dark:text-hotel-dark-accent" />
+      {/* ── Cash Summary ──────────────────────────────── */}
+      <section className="hotel-card p-5">
+        <h2 className="section-heading flex items-center gap-2 mb-4">
+          <TrendingUp size={15} strokeWidth={1.75} className="text-hotel-accent dark:text-hotel-dark-accent" />
           Cash Summary
         </h2>
-        <SummaryRow label="Opening Cash" value={fmt(totals.opening)} accent />
-        <SummaryRow label="+ Total Cash In" value={fmt(totals.cashIn)} positive />
-        <SummaryRow label="− Cash Out (Adjustments)" value={fmt(totals.cashOut)} negative={totals.cashOut > 0} />
-        <SummaryRow label="− Cash Expenses" value={fmt(totals.cashExpenses)} negative={totals.cashExpenses > 0} />
-        <SummaryRow label="Expected Ending Cash" value={fmt(totals.endingCash)} bold positive={totals.endingCash > 0} negative={totals.endingCash < 0} />
-        <div className="pt-3 border-t border-hotel-border dark:border-hotel-dark-border mt-1 space-y-0">
-          <SummaryRow label="Total Non-Cash" value={fmt(totals.nonCash)} />
-          <SummaryRow label="Total Entries" value={`${totals.entryCount} active`} />
-          <SummaryRow label="Total Expenses" value={fmt(totals.totalExpenses)} negative={totals.totalExpenses > 0} />
-          <SummaryRow label="Net Cash Impact" value={`${totals.netCashImpact >= 0 ? '+' : ''}${fmt(totals.netCashImpact)}`} positive={totals.netCashImpact > 0} negative={totals.netCashImpact < 0} bold />
+        <div>
+          <SummaryRow label="Opening Cash"            value={fmt(totals.opening)}      highlight />
+          <SummaryRow label="＋ Cash In"               value={fmt(totals.cashIn)}       positive />
+          <SummaryRow label="－ Cash Out / Adjustments" value={fmt(totals.cashOut)}    negative={totals.cashOut > 0} />
+          <SummaryRow label="－ Cash Expenses"         value={fmt(totals.cashExpenses)} negative={totals.cashExpenses > 0} />
+        </div>
+        {/* Expected Ending Cash — prominent result */}
+        <div className={`mt-4 pt-4 border-t-2 flex items-center justify-between ${
+          totals.endingCash >= 0
+            ? 'border-emerald-200 dark:border-emerald-800/40'
+            : 'border-red-200 dark:border-red-800/40'
+        }`}>
+          <span className="text-sm font-semibold text-hotel-text dark:text-hotel-dark-text">
+            Expected Ending Cash
+          </span>
+          <span className={`text-2xl font-bold tracking-tight ${
+            totals.endingCash >= 0
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-red-600 dark:text-red-400'
+          }`}>
+            {fmt(totals.endingCash)}
+          </span>
         </div>
       </section>
 
-      {/* ── Analytics Mini-Cards ─────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="section-heading flex items-center gap-2">
-          <Activity size={15} className="text-hotel-accent dark:text-hotel-dark-accent" />
-          Today at a Glance
+      {/* ── Non-Cash Summary ──────────────────────────── */}
+      <section className="hotel-card p-5">
+        <h2 className="section-heading flex items-center gap-2 mb-4">
+          <CreditCard size={15} strokeWidth={1.75} className="text-hotel-accent dark:text-hotel-dark-accent" />
+          Non-Cash Summary
         </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {/* Total Guest Transactions */}
-          <div className="hotel-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider">
-                Guest Transactions
-              </span>
-              <Receipt size={13} className="text-hotel-accent dark:text-hotel-dark-accent" />
-            </div>
-            <p className="text-2xl font-bold text-hotel-text dark:text-hotel-dark-text">
-              {totals.entryCount}
-            </p>
-            <p className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted mt-0.5">
-              active entr{totals.entryCount !== 1 ? 'ies' : 'y'}
-            </p>
-          </div>
-
-          {/* Total Expenses Today */}
-          <div className="hotel-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider">
-                Expenses Today
-              </span>
-              <ShoppingBag size={13} className="text-red-500" />
-            </div>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {fmt(totals.totalExpenses)}
-            </p>
-            <p className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted mt-0.5">
-              {totals.expenseCount} item{totals.expenseCount !== 1 ? 's' : ''} · {fmt(totals.cashExpenses)} cash
-            </p>
-          </div>
-
-          {/* Total Cash Adjustments */}
-          <div className="hotel-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider">
-                Cash Adjustments
-              </span>
-              <RefreshCw size={13} className="text-hotel-muted dark:text-hotel-dark-muted" />
-            </div>
-            <p className={`text-2xl font-bold ${totals.cashOut > 0 ? 'text-red-600 dark:text-red-400' : 'text-hotel-text dark:text-hotel-dark-text'}`}>
-              {fmt(totals.cashOut)}
-            </p>
-            <p className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted mt-0.5">
-              cashbox adjustments out
-            </p>
-          </div>
-
-          {/* Total Non-Cash Collections */}
-          <div className="hotel-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider">
-                Non-Cash Collected
-              </span>
-              <CreditCard size={13} className="text-hotel-muted dark:text-hotel-dark-muted" />
-            </div>
-            <p className="text-2xl font-bold text-hotel-text dark:text-hotel-dark-text">
-              {fmt(totals.nonCash)}
-            </p>
-            <p className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted mt-0.5">
-              GCash · Maya · Bank
-            </p>
-          </div>
+        <div>
+          <SummaryRow label="GCash"         value={fmt(totals.gcash)} />
+          <SummaryRow label="Maya"          value={fmt(totals.maya)}  />
+          <SummaryRow label="Bank Transfer" value={fmt(totals.bank)}  />
         </div>
+        <div className="mt-4 pt-4 border-t border-hotel-border dark:border-hotel-dark-border flex items-center justify-between">
+          <span className="text-sm font-semibold text-hotel-text dark:text-hotel-dark-text">
+            Total Non-Cash
+          </span>
+          <span className="text-lg font-bold text-hotel-text dark:text-hotel-dark-text">
+            {fmt(totals.nonCash)}
+          </span>
+        </div>
+      </section>
+
+      {/* ── Activity Summary ──────────────────────────── */}
+      <section className="hotel-card p-5">
+        <h2 className="section-heading flex items-center gap-2 mb-4">
+          <Hash size={15} strokeWidth={1.75} className="text-hotel-accent dark:text-hotel-dark-accent" />
+          Activity Summary
+        </h2>
+        <SummaryRow
+          label="Total Active Entries"
+          value={`${totals.entryCount} entr${totals.entryCount !== 1 ? 'ies' : 'y'}`}
+          positive={totals.entryCount > 0}
+        />
+        <SummaryRow
+          label="Total Voided Transactions"
+          value={String(voidedEntries.length + voidedExpenses.length)}
+          negative={(voidedEntries.length + voidedExpenses.length) > 0}
+        />
+        <SummaryRow
+          label="Total Expenses"
+          value={`${totals.expenseCount} item${totals.expenseCount !== 1 ? 's' : ''} · ${fmt(totals.totalExpenses)}`}
+          negative={totals.totalExpenses > 0}
+        />
       </section>
 
       {/* ── Cash Count Check ──────────────────────────── */}
@@ -377,11 +360,29 @@ export default function Summary() {
                   </p>
                 </div>
                 {(() => {
-                  const { netCashImpact } = computeEntryDisplay(e)
+                  const { totalAmount, netCashImpact, nonCash, cashIn, cashOut } = computeEntryDisplay(e)
+                  const isPureNonCash = cashIn === 0 && cashOut === 0 && nonCash > 0
                   return (
-                    <span className={`text-sm font-bold ${netCashImpact >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {netCashImpact >= 0 ? '+' : ''}{fmt(netCashImpact)}
-                    </span>
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${
+                        isPureNonCash
+                          ? 'text-hotel-text dark:text-hotel-dark-text'
+                          : netCashImpact > 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : netCashImpact < 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-hotel-muted dark:text-hotel-dark-muted'
+                      }`}>
+                        {isPureNonCash
+                          ? fmt(totalAmount)
+                          : `${netCashImpact > 0 ? '+' : ''}${fmt(netCashImpact)}`}
+                      </span>
+                      {nonCash > 0 && (
+                        <p className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted">
+                          {fmt(nonCash)} non-cash
+                        </p>
+                      )}
+                    </div>
                   )
                 })()}
               </div>

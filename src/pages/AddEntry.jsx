@@ -1,9 +1,10 @@
-import React, { useState, useContext } from 'react'
+import React, { useState } from 'react'
 import {
   User, Home, CreditCard, FileText, Plus, Trash2,
   CheckCircle, ChevronRight, ChevronLeft, AlertCircle,
 } from 'lucide-react'
 import { useData } from '../contexts/DataContext'
+import { useAuth } from '../contexts/AuthContext'
 import { isConfigured } from '../lib/supabase'
 import PaymentBadge from '../components/PaymentBadge'
 
@@ -23,34 +24,30 @@ function calcTotal(transactions) {
 }
 
 const STEPS = [
-  { id: 1, label: 'Guest & Staff', icon: User },
-  { id: 2, label: 'Rooms', icon: Home },
-  { id: 3, label: 'Payments', icon: CreditCard },
-  { id: 4, label: 'Notes', icon: FileText },
+  { id: 1, label: 'Guest Info',  icon: User       },
+  { id: 2, label: 'Rooms',       icon: Home       },
+  { id: 3, label: 'Payments',    icon: CreditCard  },
+  { id: 4, label: 'Notes',       icon: FileText   },
 ]
 
 export default function AddEntry() {
-  const { staff, saveEntry, selectedDate } = useData()
+  const { saveEntry, selectedDate } = useData()
+  const { profile } = useAuth()
 
   const [step, setStep] = useState(1)
   const [guestName, setGuestName] = useState('')
-  const [staffId, setStaffId] = useState('')
   const [rooms, setRooms] = useState([{ type: 'Casa Clara' }])
   const [transactions, setTransactions] = useState([
     { category: 'Room Payment', amount: '', payment_method: 'Cash' },
   ])
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [notes,   setNotes]   = useState('')
+  const [saving,  setSaving]  = useState(false)
+  const [saved,   setSaved]   = useState(false)
+  const [error,   setError]   = useState('')
 
   // ── rooms helpers ──────────────────────────────────────
-  function addRoom() {
-    setRooms((r) => [...r, { type: 'Casa Clara' }])
-  }
-  function removeRoom(i) {
-    setRooms((r) => r.filter((_, idx) => idx !== i))
-  }
+  function addRoom() { setRooms((r) => [...r, { type: 'Casa Clara' }]) }
+  function removeRoom(i) { setRooms((r) => r.filter((_, idx) => idx !== i)) }
   function updateRoom(i, field, val) {
     setRooms((r) => r.map((rm, idx) => (idx === i ? { ...rm, [field]: val } : rm)))
   }
@@ -59,9 +56,7 @@ export default function AddEntry() {
   function addTx() {
     setTransactions((t) => [...t, { category: 'Room Payment', amount: '', payment_method: 'Cash' }])
   }
-  function removeTx(i) {
-    setTransactions((t) => t.filter((_, idx) => idx !== i))
-  }
+  function removeTx(i) { setTransactions((t) => t.filter((_, idx) => idx !== i)) }
   function updateTx(i, field, val) {
     setTransactions((t) => t.map((tx, idx) => (idx === i ? { ...tx, [field]: val } : tx)))
   }
@@ -83,21 +78,17 @@ export default function AddEntry() {
     setSaving(true)
     setError('')
     try {
-      const staffMember = staff.find((s) => s.id === staffId)
+      // staff_id / staff_name / created_by_* are auto-populated by DataContext from auth
       await saveEntry({
-        guest_name: guestName.trim(),
-        staff_id: staffId || null,
-        staff_name: staffMember?.name ?? null,
+        guest_name:   guestName.trim(),
         rooms,
         transactions: transactions.map((t) => ({ ...t, amount: Number(t.amount) })),
-        notes: notes.trim(),
+        notes:        notes.trim(),
       })
       setSaved(true)
-      // Reset after brief success state
       setTimeout(() => {
         setStep(1)
         setGuestName('')
-        setStaffId('')
         setRooms([{ type: 'Casa Clara' }])
         setTransactions([{ category: 'Room Payment', amount: '', payment_method: 'Cash' }])
         setNotes('')
@@ -111,7 +102,6 @@ export default function AddEntry() {
   }
 
   const total = calcTotal(transactions)
-  const selectedStaff = staff.find((s) => s.id === staffId)
 
   if (saved) {
     return (
@@ -140,8 +130,8 @@ export default function AddEntry() {
       {/* Step indicator */}
       <div className="flex items-center gap-1">
         {STEPS.map((s, i) => {
-          const Icon = s.icon
-          const done = step > s.id
+          const Icon  = s.icon
+          const done   = step > s.id
           const active = step === s.id
           return (
             <React.Fragment key={s.id}>
@@ -166,13 +156,14 @@ export default function AddEntry() {
         })}
       </div>
 
-      {/* Step 1 — Guest & Staff */}
+      {/* ── Step 1: Guest Info ──────────────────────────────── */}
       {step === 1 && (
         <div className="hotel-card p-5 space-y-4 animate-slide-up">
           <h2 className="section-heading flex items-center gap-2">
             <User size={15} className="text-hotel-accent dark:text-hotel-dark-accent" />
-            Guest & Staff
+            Guest Info
           </h2>
+
           <div>
             <label className="hotel-label">Guest / Company Name *</label>
             <input
@@ -183,23 +174,27 @@ export default function AddEntry() {
               autoFocus
             />
           </div>
-          <div>
-            <label className="hotel-label">Staff Member</label>
-            <select
-              className="hotel-select"
-              value={staffId}
-              onChange={(e) => setStaffId(e.target.value)}
-            >
-              <option value="">— Select staff —</option>
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
+
+          {/* Logged-in staff indicator */}
+          {profile && (
+            <div className="flex items-center gap-2 text-xs text-hotel-muted dark:text-hotel-dark-muted bg-hotel-surface dark:bg-hotel-dark-surface border border-hotel-border dark:border-hotel-dark-border rounded-xl px-4 py-2.5">
+              <div className="w-5 h-5 rounded-lg bg-hotel-accent flex items-center justify-center shrink-0">
+                <span className="text-white text-[9px] font-bold leading-none">
+                  {profile.full_name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <span>
+                Logged as{' '}
+                <span className="font-semibold text-hotel-text dark:text-hotel-dark-text">
+                  {profile.full_name}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Step 2 — Rooms */}
+      {/* ── Step 2: Rooms ───────────────────────────────────── */}
       {step === 2 && (
         <div className="space-y-3 animate-slide-up">
           <div className="hotel-card p-5 space-y-3">
@@ -235,7 +230,7 @@ export default function AddEntry() {
         </div>
       )}
 
-      {/* Step 3 — Transactions */}
+      {/* ── Step 3: Payments ────────────────────────────────── */}
       {step === 3 && (
         <div className="space-y-3 animate-slide-up">
           <div className="hotel-card p-5 space-y-4">
@@ -299,17 +294,13 @@ export default function AddEntry() {
                   </div>
                 </div>
 
-                {/* Impact hint */}
                 <div className="flex items-center gap-1.5 pt-0.5">
                   <PaymentBadge method={tx.payment_method} size="xs" />
-                  {tx.payment_method === 'Cash' && (
+                  {tx.payment_method === 'Cash' ? (
                     <span className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted">
-                      {tx.category === 'Cashbox Adjustment'
-                        ? '→ Cash Out'
-                        : '→ Cash In'}
+                      {tx.category === 'Cashbox Adjustment' ? '→ Cash Out' : '→ Cash In'}
                     </span>
-                  )}
-                  {tx.payment_method !== 'Cash' && (
+                  ) : (
                     <span className="text-[11px] text-hotel-muted dark:text-hotel-dark-muted">
                       → Non-Cash (no cash impact)
                     </span>
@@ -324,15 +315,16 @@ export default function AddEntry() {
         </div>
       )}
 
-      {/* Step 4 — Notes */}
+      {/* ── Step 4: Notes + summary ─────────────────────────── */}
       {step === 4 && (
         <div className="hotel-card p-5 space-y-4 animate-slide-up">
           <h2 className="section-heading flex items-center gap-2">
             <FileText size={15} className="text-hotel-accent dark:text-hotel-dark-accent" />
             Notes
           </h2>
+
           <div>
-            <label className="hotel-label">Additional Notes (optional)</label>
+            <label className="hotel-label">Additional Notes <span className="normal-case font-normal text-hotel-muted dark:text-hotel-dark-muted">(optional)</span></label>
             <textarea
               className="hotel-input resize-none"
               rows={4}
@@ -342,7 +334,7 @@ export default function AddEntry() {
             />
           </div>
 
-          {/* Summary preview */}
+          {/* Entry summary preview */}
           <div className="bg-hotel-surface dark:bg-hotel-dark-surface rounded-xl p-4 space-y-2">
             <p className="text-xs font-semibold text-hotel-muted dark:text-hotel-dark-muted uppercase tracking-wider">
               Entry Summary
@@ -351,10 +343,10 @@ export default function AddEntry() {
               <span className="text-hotel-muted dark:text-hotel-dark-muted">Guest</span>
               <span className="font-medium text-hotel-text dark:text-hotel-dark-text">{guestName}</span>
             </div>
-            {selectedStaff && (
+            {profile && (
               <div className="flex justify-between text-sm">
                 <span className="text-hotel-muted dark:text-hotel-dark-muted">Staff</span>
-                <span className="text-hotel-text dark:text-hotel-dark-text">{selectedStaff.name}</span>
+                <span className="text-hotel-text dark:text-hotel-dark-text">{profile.full_name}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
@@ -392,12 +384,12 @@ export default function AddEntry() {
             </button>
           )}
 
-          <div className="flex-1 flex items-center justify-between gap-3">
+          <div className="flex-1">
             {step < 4 ? (
               <button
                 onClick={() => canProceed() && setStep((s) => s + 1)}
                 disabled={!canProceed()}
-                className="btn-primary flex-1 flex items-center justify-center gap-1.5"
+                className="btn-primary w-full flex items-center justify-center gap-1.5"
               >
                 Next <ChevronRight size={15} />
               </button>
@@ -405,7 +397,7 @@ export default function AddEntry() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="btn-primary flex-1 flex items-center justify-center gap-2"
+                className="btn-primary w-full flex items-center justify-center gap-2"
               >
                 {saving ? 'Saving…' : `Save Entry · ${fmt(total)}`}
               </button>

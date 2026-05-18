@@ -4,9 +4,11 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from 'react'
 import { format } from 'date-fns'
 import { supabase, isConfigured } from '../lib/supabase'
+import { useAuth } from './AuthContext'
 
 const DataContext = createContext(null)
 
@@ -30,13 +32,15 @@ export function calcEntryAmounts(transactions) {
       nonCash += amt
     }
   })
-  // Keys match Supabase column names (snake_case) exactly
+  // Keys match Supabase column names (snake_case) exactly.
+  // total_amount = revenue only (cashIn + nonCash).
+  // Cashbox Adjustments (cashOut) are cash movements, NOT revenue — excluded.
   return {
     cash_in: cashIn,
     cash_out: cashOut,
     non_cash_amount: nonCash,
-    total_amount: cashIn + cashOut + nonCash,
-    cash_amount: cashIn + cashOut,
+    total_amount: cashIn + nonCash,   // revenue only — NO cashbox adjustment
+    cash_amount: cashIn,              // cash received from guest
     net_cash_impact: cashIn - cashOut,
   }
 }
@@ -55,8 +59,9 @@ export function computeEntryDisplay(entry) {
       nonCash += amt
     }
   })
+  // totalAmount = revenue (cashIn + nonCash). Cashbox Adjustments excluded.
   return {
-    totalAmount: cashIn + cashOut + nonCash,
+    totalAmount: cashIn + nonCash,
     cashIn,
     cashOut,
     nonCash,
@@ -117,6 +122,16 @@ export function calcTotals(entries, expenseList, openingCashAmt) {
 
 // ── provider ─────────────────────────────────────────────────
 export function DataProvider({ children }) {
+  const { user, profile } = useAuth()
+
+  // Stable refs so save callbacks don't depend on auth state
+  const authUserRef    = useRef(null)
+  const authProfileRef = useRef(null)
+  useEffect(() => {
+    authUserRef.current    = user
+    authProfileRef.current = profile
+  }, [user, profile])
+
   const [selectedDate, setSelectedDate] = useState(
     format(new Date(), 'yyyy-MM-dd')
   )
@@ -124,6 +139,7 @@ export function DataProvider({ children }) {
   const [expenses, setExpenses] = useState([])
   const [openingCashRecord, setOpeningCashRecord] = useState(null)
   const [staff, setStaff] = useState([])
+  const [profiles, setProfiles] = useState([])
   const [voidedEntries, setVoidedEntries] = useState([])
   const [voidedExpenses, setVoidedExpenses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -141,6 +157,7 @@ export function DataProvider({ children }) {
         { data: expensesData },
         { data: openingData },
         { data: staffData },
+        { data: profilesData },
         { data: voidedEntriesData },
         { data: voidedExpensesData },
       ] = await Promise.all([
@@ -160,6 +177,7 @@ export function DataProvider({ children }) {
           .eq('date', date)
           .maybeSingle(),
         supabase.from('staff').select('*').eq('active', true).order('name'),
+        supabase.from('profiles').select('*').order('full_name'),
         supabase
           .from('voided_entries')
           .select('*')
@@ -175,6 +193,7 @@ export function DataProvider({ children }) {
       setExpenses(expensesData ?? [])
       setOpeningCashRecord(openingData ?? null)
       setStaff(staffData ?? [])
+      setProfiles(profilesData ?? [])
       setVoidedEntries(voidedEntriesData ?? [])
       setVoidedExpenses(voidedExpensesData ?? [])
     } catch (err) {
@@ -186,6 +205,19 @@ export function DataProvider({ children }) {
 
   // ── realtime subscriptions ───────────────────────────────────
   useEffect(() => {
+    // Clear data immediately when user signs out
+    if (!user) {
+      setEntries([])
+      setExpenses([])
+      setOpeningCashRecord(null)
+      setStaff([])
+      setProfiles([])
+      setVoidedEntries([])
+      setVoidedExpenses([])
+      setLoading(false)
+      return
+    }
+
     fetchAll(selectedDate)
     if (!isConfigured || !supabase) return
 
@@ -219,18 +251,26 @@ export function DataProvider({ children }) {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [selectedDate, fetchAll])
+  }, [selectedDate, user, fetchAll])
 
   // ── mutations ─────────────────────────────────────────────────
   const saveEntry = useCallback(
     async (payload) => {
       if (!supabase) throw new Error('Supabase not configured')
+      const u = authUserRef.current
+      const p = authProfileRef.current
       const amounts = calcEntryAmounts(payload.transactions)
       const row = {
         ...payload,
         ...amounts,
         date: selectedDate,
         status: 'active',
+        // Auth-derived identity — overrides any caller-supplied values
+        staff_id:            u?.id   ?? payload.staff_id   ?? null,
+        staff_name:          p?.full_name ?? payload.staff_name ?? null,
+        created_by_user_id:  u?.id   ?? null,
+        created_by_name:     p?.full_name ?? null,
+        created_by_role:     p?.role ?? null,
       }
       const { data, error } = await supabase
         .from('cash_entries')
@@ -246,7 +286,19 @@ export function DataProvider({ children }) {
   const saveExpense = useCallback(
     async (payload) => {
       if (!supabase) throw new Error('Supabase not configured')
-      const row = { ...payload, date: selectedDate, status: 'active' }
+      const u = authUserRef.current
+      const p = authProfileRef.current
+      const row = {
+        ...payload,
+        date: selectedDate,
+        status: 'active',
+        // Auth-derived identity — overrides any caller-supplied values
+        staff_id:            u?.id   ?? payload.staff_id   ?? null,
+        staff_name:          p?.full_name ?? payload.staff_name ?? null,
+        created_by_user_id:  u?.id   ?? null,
+        created_by_name:     p?.full_name ?? null,
+        created_by_role:     p?.role ?? null,
+      }
       const { data, error } = await supabase
         .from('expenses')
         .insert([row])
@@ -360,6 +412,7 @@ export function DataProvider({ children }) {
         activeExpenses,
         openingCashRecord,
         staff,
+        profiles,
         voidedEntries,
         voidedExpenses,
         loading,

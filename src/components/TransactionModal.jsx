@@ -39,7 +39,8 @@ function ExpenseModal({ expense, onClose }) {
 
   const ICONS = {
     Supplies: '🧹', Maintenance: '🔧', Laundry: '👕',
-    Transportation: '🚗', Food: '🍱', Refund: '↩️', Other: '📦',
+    Transportation: '🚗', Food: '🍱', Refund: '↩️',
+    "Owner's Withdrawal": '💸', Other: '📦',
   }
 
   return (
@@ -192,7 +193,8 @@ function EntryModal({ entry, onClose }) {
     } else _nc += amt
   })
   const cashImpact = _ci - _co
-  const computedTotal = _ci + _co + _nc
+  // Revenue = cashIn + nonCash. Cashbox Adjustments (cashOut) are movements, not revenue.
+  const computedTotal = _ci + _nc
   const computedNonCash = _nc
 
   const impactClass =

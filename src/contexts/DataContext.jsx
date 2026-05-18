@@ -294,18 +294,20 @@ export function DataProvider({ children }) {
       const u = authUserRef.current
       const p = authProfileRef.current
       const amounts = calcEntryAmounts(payload.transactions)
+      // Strip staff_id from payload — it references the old staff table (not
+      // auth.users) and is no longer populated by the UI. Passing the auth UUID
+      // as staff_id would violate the foreign-key constraint.
+      const { staff_id: _drop, ...safePayload } = payload
       const row = {
-        ...payload,
+        ...safePayload,
         ...amounts,
         date: selectedDate,
         status: 'active',
-        // Auth-derived identity — overrides any caller-supplied values.
-        // Falls back to email when profile hasn't loaded yet.
-        staff_id:            u?.id   ?? payload.staff_id   ?? null,
-        staff_name:          p?.full_name ?? u?.email ?? payload.staff_name ?? null,
-        created_by_user_id:  u?.id   ?? null,
-        created_by_name:     p?.full_name ?? u?.email ?? null,
-        created_by_role:     p?.role ?? null,
+        staff_name:         p?.full_name ?? u?.email ?? safePayload.staff_name ?? null,
+        created_by_user_id: u?.id    ?? null,
+        created_by_name:    p?.full_name ?? u?.email ?? null,
+        created_by_email:   u?.email ?? null,
+        created_by_role:    p?.role  ?? null,
       }
       const { data, error } = await supabase
         .from('cash_entries')
@@ -323,17 +325,17 @@ export function DataProvider({ children }) {
       if (!supabase) throw new Error('Supabase not configured')
       const u = authUserRef.current
       const p = authProfileRef.current
+      // Strip staff_id from payload — same reason as saveEntry (old staff table FK).
+      const { staff_id: _drop, ...safePayload } = payload
       const row = {
-        ...payload,
+        ...safePayload,
         date: selectedDate,
         status: 'active',
-        // Auth-derived identity — overrides any caller-supplied values.
-        // Falls back to email when profile hasn't loaded yet.
-        staff_id:            u?.id   ?? payload.staff_id   ?? null,
-        staff_name:          p?.full_name ?? u?.email ?? payload.staff_name ?? null,
-        created_by_user_id:  u?.id   ?? null,
-        created_by_name:     p?.full_name ?? u?.email ?? null,
-        created_by_role:     p?.role ?? null,
+        staff_name:         p?.full_name ?? u?.email ?? safePayload.staff_name ?? null,
+        created_by_user_id: u?.id    ?? null,
+        created_by_name:    p?.full_name ?? u?.email ?? null,
+        created_by_email:   u?.email ?? null,
+        created_by_role:    p?.role  ?? null,
       }
       const { data, error } = await supabase
         .from('expenses')

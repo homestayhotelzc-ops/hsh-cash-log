@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  Wallet, TrendingUp, CreditCard,
+  Wallet, TrendingUp, CreditCard, DollarSign,
   Users, Lock, Unlock, Save,
   CheckCircle, AlertTriangle, Clock, Trash2, Hash,
 } from 'lucide-react'
